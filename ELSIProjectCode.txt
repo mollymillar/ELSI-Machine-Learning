@@ -1,0 +1,427 @@
+>>> import sklearn
+>>> import numpy
+>>> import json
+>>> import requests
+#load positive and negative ELSI papers
+>>> data_url = 'http://web.stanford.edu/~jlever/elsi_papers_with_negatives.json'
+>>> response = requests.get(data_url)
+>>> documents = response.json()
+>>> print(len(documents))
+1558
+#create list of titles and abstracts
+>>> documents_text = []
+>>> for d in documents:
+	d[‘titleabstract’] = d[‘title’] + ‘\n’ + d[‘abstract’]
+>>> for d in documents:
+	documents_text.append(d[‘titleabstract’])
+>>> print(len(documents_text))
+1558
+#run data through a word vectorizer
+>>> from sklearn.feature_extraction.text import TfidfVectorizer
+>>> tfidf = TfidfVectorizer()
+>>> vectors = tfidf.fit_transform(documents_text)
+>>> vectors.shape
+(1558, 15392)
+#create a list for ‘is_elsi_paper’ feature
+>>> documents_text2 = []
+>>> for doc in documents:
+       documents_text2.append(doc['is_elsi_paper'])
+#use the train_test_split sklearn function twice to split data into training, validation, and testing data(0.2, 0.2, 0.6)
+>>> from sklearn.model_selection import train_test_split
+>>> X = vectors
+>>> y = documents_text2
+>>> X_training, X_test, y_training, y_test = train_test_split(X, y, test_size=0.6, random_state=1)
+>>> X_training.shape
+(623, 15392)
+>>> X_test.shape
+(935, 15392)
+>>> X_train, X_val, y_train, y_val = train_test_split(X_training, y_training, test_size=0.5, random_state=2)
+>>> X_train.shape
+(311, 15392)
+>>> X_val.shape
+(312, 15392)
+#use the X_train and y_train to train the supervised learning models then test on the validation data to predict ELSI papers
+#find accuracy scores and confusion matrices
+>>> from sklearn.linear_model import LogisticRegression
+>>> lr = LogisticRegression()
+>>> lr.fit(X_train, y_train)
+LogisticRegression()
+>>> pred = lr.predict(X_val)
+>>> score = lr.score(X_val, y_val)
+>>> print(score)
+0.8782051282051282
+>>> from sklearn.metrics import confusion_matrix
+>>> print(confusion_matrix(y_val, pred))
+[[148   3]
+ [ 35 126]]
+>>> print(pred)
+[ True False False False False False False False False False  True  True
+  True  True False  True False  True  True False False  True False False
+  True False  True False False False  True  True  True  True False False
+ False False  True  True  True False False  True  True False  True  True
+ False False  True False False False False  True False  True False  True
+ False False False False False False False False  True False  True False
+ False False False  True False  True  True  True False False  True False
+ False False False  True False  True  True  True False  True False False
+  True False False False  True False False False False False False False
+ False  True False False False False  True  True False False False  True
+ False False False False  True False False  True  True False  True  True
+ False  True  True  True  True False False False False False  True False
+ False False False  True  True False  True  True False False False  True
+  True False False False  True False  True  True False False  True False
+  True False False False False False False False  True False False False
+ False False False False  True  True False False  True  True  True False
+  True  True False  True False False False  True False False False  True
+ False  True  True False False False  True  True False False  True False
+ False  True  True  True False  True  True False False False False  True
+  True  True False  True  True False  True  True  True False False False
+ False False False  True  True  True  True False False  True  True  True
+  True False  True False  True  True  True  True False False False  True
+  True False  True False  True  True False False  True False  True False
+ False  True  True  True False False False  True False False False  True
+ False  True False False False  True False  True  True  True False False
+ False False  True  True False  True False False  True False False  True]
+>>> from sklearn.naive_bayes import MultinomialNB
+>>> mnb = MultinomialNB()
+>>> modelm = mnb.fit(X_train, y_train)
+>>> pred2 = modelm.predict(X_val)
+>>> print(numpy.mean(pred2 == y_val))
+0.8493589743589743
+>>> print(confusion_matrix(y_val, pred2))
+[[110  41]
+ [  6 155]]
+>>> print(pred2)
+[ True False False False False  True  True False False False  True  True
+  True  True False  True False  True  True  True False  True  True False
+  True False  True  True False False  True  True  True  True  True False
+ False  True  True  True  True False  True  True  True False  True  True
+  True  True  True  True False  True  True  True False  True False  True
+  True False False False  True  True False False  True False  True  True
+  True False False  True False  True  True  True False False  True False
+  True  True False  True False  True  True  True False  True  True  True
+  True False False  True  True False  True False False False False False
+ False  True False False False False  True  True  True False False  True
+ False False False False  True False False  True  True  True  True  True
+  True  True  True  True  True False  True False False False  True False
+ False  True False  True  True  True  True  True False  True  True  True
+  True False False False  True False  True  True False False  True False
+  True False  True False  True False False  True  True False False False
+ False False  True  True  True  True False  True  True  True  True False
+  True  True  True  True False False False  True  True  True  True  True
+ False  True  True False  True  True  True  True False  True  True  True
+  True  True  True  True  True  True  True False False False  True  True
+  True  True False  True  True  True  True  True  True False False False
+  True  True False  True  True  True  True False False  True  True  True
+  True  True  True False  True  True  True  True  True  True  True  True
+  True  True  True  True  True  True  True False  True  True  True  True
+  True  True  True  True  True  True False  True False False False  True
+ False  True False False False  True  True  True  True  True False  True
+ False False  True  True  True  True False False  True False False  True]
+>>> from sklearn.naive_bayes import ComplementNB
+>>> cnb = ComplementNB()
+>>> modelc = cnb.fit(X_train, y_train)
+>>> pred3 = modelc.predict(X_val)
+>>> print(numpy.mean(pred3 == y_val))
+0.8269230769230769
+>>> print(confusion_matrix(y_val, pred3))
+[[101  50]
+ [  4 157]]
+>>> print(pred3)
+[ True False False False False  True  True False False False  True  True
+  True  True False  True False  True  True  True False  True  True False
+  True False  True  True False False  True  True  True  True  True False
+ False  True  True  True  True False  True  True  True False  True  True
+  True  True  True  True False  True  True  True  True  True False  True
+  True False False  True  True  True False False  True False  True  True
+  True  True False  True False  True  True  True False False  True False
+  True  True False  True False  True  True  True False  True  True  True
+  True  True False  True  True False  True False False False False False
+ False  True False False False False  True  True  True False False  True
+ False False False False  True False False  True  True  True  True  True
+  True  True  True  True  True False  True False False False  True False
+ False  True False  True  True  True  True  True False  True  True  True
+  True False False False  True False  True  True False False  True False
+  True False  True False  True False False  True  True False  True  True
+ False False  True  True  True  True False  True  True  True  True False
+  True  True  True  True False False False  True  True  True  True  True
+  True  True  True False  True  True  True  True False  True  True  True
+  True  True  True  True  True  True  True False  True False  True  True
+  True  True False  True  True  True  True  True  True False False False
+  True  True False  True  True  True  True False False  True  True  True
+  True  True  True False  True  True  True  True  True  True  True  True
+  True  True  True  True  True  True  True False  True  True  True  True
+  True  True  True  True  True  True False  True False False False  True
+ False  True False  True  True  True  True  True  True  True False  True
+ False False  True  True  True  True False False  True False  True  True]
+>>> from sklearn.naive_bayes import BernoulliNB
+>>> bnb = BernoulliNB()
+>>> modelb = bnb.fit(X_train, y_train)
+>>> pred4 = modelb.predict(X_val)
+>>> print(numpy.mean(pred4 == y_val))
+0.8685897435897436
+>>> print(confusion_matrix(y_val, pred4))
+[[136  15]
+ [ 26 135]]
+>>> print(pred4)
+[ True False False False False  True False False False False  True  True
+  True  True False  True False  True  True False False  True  True False
+  True False  True False False False  True  True  True  True  True False
+ False  True  True  True  True False False  True  True False  True  True
+  True False  True  True False  True False  True False  True False  True
+ False False False False  True  True False False  True False  True  True
+  True False False  True False  True  True  True False False  True False
+ False False False  True False False  True  True False  True False False
+  True False False  True  True False  True False  True False False False
+ False False False False False False  True  True False False False  True
+ False False False False  True False False  True  True False  True  True
+ False  True  True  True  True False  True False False False  True False
+ False False False  True  True False  True  True False  True  True  True
+  True False False False  True False  True  True False False  True False
+  True False  True False  True False False False  True False False False
+ False False False False  True False False False  True  True  True False
+  True  True  True  True False False False  True  True False False  True
+ False  True  True False False False  True  True False False  True  True
+ False False  True False False False  True False False False False  True
+  True  True False  True  True  True  True  True  True False False False
+ False False False  True  True  True  True False False  True  True  True
+  True False  True False  True  True  True  True False  True  True  True
+  True False  True  True  True  True False False  True False  True  True
+  True  True  True  True False False False  True False False False  True
+ False  True False False False False  True  True  True  True False False
+ False False  True  True False False False False  True False False  True]
+>>> from sklearn import svm
+>>> svms = svm.SVC()
+>>> models = svms.fit(X_train, y_train)
+>>> pred5 = models.predict(X_val)
+>>> print(numpy.mean(pred5 == y_val))
+0.8621794871794872
+>>> print(confusion_matrix(y_val, pred5))
+[[148   3]
+ [ 40 121]]
+>>> print(pred5)
+[ True False False False False False False False False False  True  True
+  True  True False  True False  True  True False False  True False False
+  True False  True False False False  True  True False False False False
+ False False  True  True  True False False  True  True False  True  True
+ False False  True False False False False  True False  True False  True
+ False False False False False False False False  True False  True False
+ False False False  True False  True  True  True False False  True False
+ False False False  True False False  True  True False  True False False
+  True False False False  True False False False False False False False
+ False  True False False False False  True  True False False False  True
+ False False False False  True False False  True  True False  True  True
+ False  True  True  True  True False False False False False  True False
+ False False False  True  True False  True  True False False False  True
+  True False False False  True False  True  True False False  True False
+  True False False False False False False False  True False False False
+ False False False False  True  True False False  True  True  True False
+  True  True False  True False False False  True False False False  True
+ False  True  True False False False  True  True False False  True False
+ False  True  True  True False  True  True False False False False  True
+  True  True False  True  True False  True  True  True False False False
+ False False False  True  True False  True False False  True  True  True
+ False False  True False  True  True  True  True False False False  True
+  True False  True False  True  True False False  True False  True False
+ False  True  True  True False False False  True False False False  True
+ False  True False False False  True False  True  True  True False False
+ False False  True  True False  True False False  True False False  True]
+>>> svmn = svm.NuSVC()
+>>> modeln = svmn.fit(X_train, y_train)
+>>> pred6 = modeln.predict(X_val)
+>>> print(numpy.mean(pred6 == y_val))
+0.8878205128205128
+>>> print(confusion_matrix(y_val, pred6))
+[[147   4]
+ [ 31 130]]
+>>> print(pred6)
+[ True False False False False False False False False False  True  True
+  True  True False  True False  True  True False False  True False False
+  True False  True False False False  True  True  True  True False False
+ False False  True  True  True False False  True  True False  True  True
+ False False  True False False False False  True False  True False  True
+ False False False False  True False False False  True False  True False
+ False False False  True False  True  True  True False False  True False
+ False False False  True False  True  True  True False  True False False
+  True False False False  True False  True False False False False False
+ False  True False False False False  True  True False False False  True
+ False False False False  True False False  True  True False  True  True
+ False  True  True  True  True False False False False False  True False
+ False False False  True  True False  True  True False False False  True
+  True False False False  True False  True  True False False  True False
+  True False  True False False False False False  True False False False
+ False False False False  True  True False False  True  True  True False
+  True  True False  True False False False  True False False False  True
+ False  True  True False False False  True  True False False  True  True
+ False  True  True  True False  True  True False False False False  True
+  True  True False  True  True False  True  True  True False False False
+ False False False  True  True  True  True False False  True  True  True
+  True False  True False  True  True  True  True False False  True  True
+  True False  True False  True  True False False  True False  True False
+ False  True  True  True False False False  True False False False  True
+ False  True False False False  True False  True  True  True False False
+ False False  True  True False  True False False  True False False  True]
+>>> svcl = svm.LinearSVC()
+>>> modell = svcl.fit(X_train, y_train)
+>>> pred7 = modell.predict(X_val)
+>>> print(numpy.mean(pred7 == y_val))
+0.8782051282051282
+>>> print(confusion_matrix(y_val, pred7))
+[[145   6]
+ [ 32 129]]
+>>> print(pred7)
+[ True False False False False False False False False False  True  True
+  True  True False  True False  True  True False False  True False False
+  True False  True  True False False  True  True  True  True False False
+ False False  True  True  True False False  True  True False  True  True
+ False False  True  True False False False  True False  True False  True
+ False False False False  True False False False  True False  True False
+ False False False  True False  True  True  True False False  True False
+ False False False  True False  True  True  True False  True False False
+  True False False False  True False  True False False False False False
+ False  True False False False False  True  True False False False  True
+ False False False False  True False False  True False False  True  True
+ False  True  True  True  True False False False False False  True False
+ False False False  True  True False  True  True False False False  True
+  True False False False  True False  True  True False False  True False
+  True False  True False False False False False False False False False
+ False False False False  True  True False False  True  True  True False
+  True  True False  True False False False  True  True False False  True
+ False  True  True False False False  True  True False False  True  True
+  True  True  True  True False  True  True False False False False  True
+  True  True False  True  True False  True  True  True False False False
+ False False False  True  True  True False False False  True  True  True
+  True False  True False  True  True  True  True False False  True  True
+  True False  True False  True  True False False  True False  True False
+ False  True  True  True False False False  True False False False  True
+ False  True False False False  True False  True  True  True False False
+ False False  True  True False  True False False  True False False  True]
+>>> from sklearn.neural_network import MLPClassifier
+>>> mlp = MLPClassifier()
+>>> modelp = mlp.fit(X_train, y_train)
+>>> pred8 = modelp.predict(X_val)
+>>> print(numpy.mean(pred8 == y_val))
+0.9102564102564102
+>>> print(confusion_matrix(y_val, pred8))
+[[136  15]
+ [ 13 148]]
+>>> print(pred8)
+[ True False False False False False False False False False  True  True
+  True  True False  True False  True  True  True False  True False False
+  True False  True  True False False False  True  True  True  True False
+ False False  True  True  True False False  True  True False  True  True
+ False  True  True  True False False False  True False  True False  True
+  True False False False  True  True False False  True False  True  True
+ False False False  True False  True  True  True False False  True False
+  True False False  True False  True  True  True False  True False  True
+  True False False  True  True False  True False False False False False
+ False  True False False False False  True  True False False False  True
+ False False False False  True False False  True False  True  True  True
+  True  True  True  True  True False False False False False  True False
+ False False False  True  True  True  True  True False  True  True  True
+  True False False False  True False  True  True False False  True False
+  True False  True False False False False False  True False False False
+ False False False False  True  True False  True  True  True  True False
+  True  True False  True False False False  True  True False  True  True
+ False  True  True False  True False  True  True False  True  True  True
+  True  True  True  True False  True  True False False False False  True
+  True  True False  True  True  True  True  True  True False False False
+ False  True False  True  True  True  True False False  True  True  True
+  True False  True False  True  True  True  True False False  True  True
+  True  True  True  True  True  True  True False  True False  True  True
+ False  True  True  True False  True False  True False False False  True
+ False  True False False  True  True False  True  True  True False False
+ False False  True  True  True  True False False  True False False  True]
+#use testing data to test the top ML models
+>>> pred9 = lr.predict(X_test)
+>>> print(numpy.mean(pred9 == y_test))
+0.8491978609625669
+>>> print(confusion_matrix(y_test, pred9))
+[[445  21]
+ [120 349]]
+>>> pred10 = modeln.predict(X_test)
+>>> print(numpy.mean(pred10 == y_test))
+0.8545454545454545
+>>> print(confusion_matrix(y_test, pred10))
+[[448  18]
+ [118 351]]
+>>> pred11 = modell.predict(X_test)
+>>> print(numpy.mean(pred11 == y_test))
+0.8727272727272727
+>>> print(confusion_matrix(y_test, pred11))
+[[444  22]
+ [ 97 372]]
+>>> pred12 = modelp.predict(X_test)
+>>> print(numpy.mean(pred12 == y_test))
+0.8705882352941177
+>>> print(confusion_matrix(y_test, pred12))
+[[400  66]
+ [ 55 414]]
+
+#try to find ELSI papers from a larger untested corpus using the top ML model
+#load new papers and create list of titles and abstracts
+>>> import json
+>>> with open(‘morePapers.json’) as f:
+	data = json.load(f)
+>>> print(len(data))
+10000
+>>> data_set = list(data.values())
+>>> dataset_text = []
+>>> for d in data_set:
+       d['titleabstract'] = d['title'] + '\n' + d['abstract']
+>>> for d in data_set:
+       dataset_text.append(d['titleabstract'])
+#run through the same word vectorizer as the original training data, keeping the features from the training data
+>>> vectors.shape
+(1558, 15392)
+>>> X_more = tfidf.transform(dataset_text)
+>>> X_more.shape
+(10000, 15392)
+#I used the entire 1558 papers to train the ML model this time
+>>> mod = svcl.fit(vectors, documents_text2)
+>>> results = mod.predict(X_more)
+#check what new predictions look like
+>>> print(results[0:100])
+[False False False False False False False False False  True False False
+ False False False False False False False False False False False False
+ False False False False False False False False False False False False
+ False False False False False False  True False False False False False
+ False False False  True False False False False False False False False
+ False False False False False False False False  True False False False
+ False False False False  True False  True False False False  True False
+ False  True False False False  True False False False False False  True
+ False  True False False]
+>>> print(results[42])
+True
+>>> print(dataset_text[42])
+Why ethics defines quality--and goals define ethics.
+
+>>> print(results[51])
+True
+>>> print(dataset_text[51])
+Point and counterpoint. Is distance critical for clinical ethicists? A reply to Glenn McGee.
+
+>>> print(results[68])
+True
+>>> print(dataset_text[68])
+Putting the public at risk.
+
+>>> print(results[82])
+True
+>>> print(dataset_text[82])
+An ethical issue in biomedical research: the involvement of minors in informed and third party consent.
+
+>>> print(results[97])
+True
+>>> print(dataset_text[97])
+Arbitration agreements: do they comply with informed consent?
+
+>>> print(results[95])
+True
+>>> print(dataset_text[95])
+Confidentiality: do physicians have a right to privacy?
+
+>>> print(results[89])
+True
+>>> print(dataset_text[89])
+Ethics, technology and resource allocation in health care.
+
